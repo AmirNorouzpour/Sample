@@ -3,7 +3,6 @@ using Common;
 using Common.Exception;
 using Data.Repositories.UserRepositories;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Model.Entities;
 
 namespace API.Controllers

@@ -29,10 +29,10 @@ namespace API.Middlewares
 
         public async Task Invoke(HttpContext context)
         {
-            string message = null;
+            var message = string.Empty;
             var httpStatusCode = HttpStatusCode.InternalServerError;
             var apiStatusCode = ApiResultStatusCode.ServerError;
-         
+
             try
             {
                 await _next(context);
@@ -43,21 +43,24 @@ namespace API.Middlewares
                 apiStatusCode = exception.ApiStatusCode;
                 if (_env.IsDevelopment())
                 {
-                    var dic = new Dictionary<string, string>
+                    if (exception.StackTrace != null)
                     {
-                        ["Exception"] = exception.Message,
-                        ["StackTrace"] = exception.StackTrace,
-                    };
-                    if (exception.InnerException != null)
-                    {
-                        dic.Add("InnerException.Exception", exception.InnerException.Message);
-                        dic.Add("InnerException.StackTrace", exception.InnerException.StackTrace);
-                    }
+                        var dic = new Dictionary<string, string>
+                        {
+                            ["Exception"] = exception.Message,
+                            ["StackTrace"] = exception.StackTrace,
+                        };
+                        if (exception.InnerException != null)
+                        {
+                            dic.Add("InnerException.Exception", exception.InnerException.Message);
+                            if (exception.InnerException.StackTrace != null)
+                                dic.Add("InnerException.StackTrace", exception.InnerException.StackTrace);
+                        }
 
-                    if (exception.AdditionalData != null)
                         dic.Add("AdditionalData", JsonConvert.SerializeObject(exception.AdditionalData));
 
-                    message = JsonConvert.SerializeObject(dic);
+                        message = JsonConvert.SerializeObject(dic);
+                    }
                 }
                 else
                 {
@@ -73,7 +76,7 @@ namespace API.Middlewares
             }
             catch (UnauthorizedAccessException exception)
             {
-               
+
                 SetUnAuthorizeResponse(exception);
                 await WriteToResponseAsync();
             }
@@ -81,12 +84,15 @@ namespace API.Middlewares
             {
                 if (_env.IsDevelopment())
                 {
-                    var dic = new Dictionary<string, string>
+                    if (exception.StackTrace != null)
                     {
-                        ["Exception"] = exception.Message,
-                        ["StackTrace"] = exception.StackTrace,
-                    };
-                    message = JsonConvert.SerializeObject(dic);
+                        var dic = new Dictionary<string, string>
+                        {
+                            ["Exception"] = exception.Message,
+                            ["StackTrace"] = exception.StackTrace,
+                        };
+                        message = JsonConvert.SerializeObject(dic);
+                    }
                 }
 
                 await WriteToResponseAsync();
@@ -95,12 +101,15 @@ namespace API.Middlewares
 
             async Task WriteToResponseAsync()
             {
-                var result = new ApiResult(false, apiStatusCode, message);
-                var json = JsonConvert.SerializeObject(result);
+                if (message != null)
+                {
+                    var result = new ApiResult(false, apiStatusCode, message);
+                    var json = JsonConvert.SerializeObject(result);
 
-                context.Response.StatusCode = (int)httpStatusCode;
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync(json);
+                    context.Response.StatusCode = (int)httpStatusCode;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsync(json);
+                }
             }
 
             void SetUnAuthorizeResponse(Exception exception)
@@ -110,6 +119,7 @@ namespace API.Middlewares
 
                 if (_env.IsDevelopment())
                 {
+                    if (exception.StackTrace == null) return;
                     var dic = new Dictionary<string, string>
                     {
                         ["Exception"] = exception.Message,
